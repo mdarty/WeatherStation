@@ -30,3 +30,14 @@
 *.exe
 *.out
 *.app
+
+# These are not the files you're looking for
+weather_esp32/settings.h
+Weather/Weather-backups
+Weather/*.zip
+
+# vim trash
+~*
+
+# my trash
+*.bk

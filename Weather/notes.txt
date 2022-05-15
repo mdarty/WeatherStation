@@ -1,0 +1,14 @@
+layout items:
+* looks like you've got a bunch of individual ground traces left over from before you added zones for it 
+* did you really want 1.0mm pitch headers for the right side?  those only leave 0.15mm between the pads, and JLC's capabilities say 0.2mm.
+* I'd probably have done GND on one side and +3.3V on the other, so you can just drop vias down instead of snaking a 3.3V trace all the way across the board.
+* internal acute angles are traditionally frowned-upon, but probably fine for now.  they used to catch the etchant and not completely get rinsed off but that's less of a problem now I think.
+* holy crap the 1N5820 is a chonky diode
+
+@darty
+I think SMD is great, but if I'm going to solder it I want through pin. Always fun to solder an smd mount part with the shakes.
+
+mokomull — Yesterday at 10:19 PM
+get some solder paste and a hot air reflow station and it feels like cheating
+
+Add gps for time Most look to be serial
