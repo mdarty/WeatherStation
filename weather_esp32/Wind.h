@@ -16,41 +16,42 @@ class WindMath {
     unsigned int _wspd_sum;
     unsigned int _wspd;
 
-    byte read_wind_dir() {
+byte read_wind_dir() {
         //https://cdn.sparkfun.com/assets/d/1/e/0/6/DS-15901-Weather_Meter.pdf
+        //10k resister
         switch (analogRead(WDIR_PIN)) {
-          case 0 ... 1208:
-            return 270;
-          case 1209 ... 1727:
-            return 315;
-          case 1728 ... 2087:
-            return 293; // 292.5;
-          case 2088 ... 2426:
-            return 000;
-          case 2427 ... 2777:
-            return 338; //337.5;
-          case 2778 ... 2971:
-            return 225;
-          case 2972 ... 3210:
-            return 248; //247.5;
-          case 3211 ... 3457:
-            return 045;
-          case 3458 ... 3622:
-            return 023; //22.5;
-          case 3623 ... 3761:
-            return 180;
-          case 3762 ... 3835:
-            return 203; //202.5;
-          case 3836 ... 3913:
-            return 135;
-          case 3914 ... 3969:
-            return 158; //157.5;
-          case 3970 ... 3994:
+          case 3002 ... 3234:
+            return 0;
+          case 1407 ... 1739:
+            return 23;
+          case 1740 ... 2159:
+            return 45;
+          case 300 ... 353:
+            return 68;
+          case 354 ... 439:
             return 90;
-          case 3995 ... 4009:
-            return 68; //67.5;
-          case 4010 ... 4095:
-            return 113; //112.5;
+          case 0 ... 299:
+            return 113;
+          case 626 ... 862:
+            return 135;
+          case 440 ... 625:
+            return 158;
+          case 1066 ... 1406:
+            return 180;
+          case 863 ... 1065:
+            return 203;
+          case 2462 ... 2680:
+            return 225;
+          case 2160 ... 2461:
+            return 248;
+          case 3696 ... 4096:
+            return 270;
+          case 3235 ... 3450:
+            return 293;
+          case 3451 ... 3695:
+            return 315;
+          case 2681 ... 3001:
+            return 338;
         }
     }
   
@@ -77,10 +78,10 @@ class WindMath {
         Serial.println(_wspd);
         Serial.print("wspd_count: ");
         Serial.println(wspd_count);
-        Serial.print("millis");
+        Serial.print("millis: ");
         Serial.println(millis());
-        Serial.print("last_millis");
-        Serial.print(wspd_last_millis);
+        Serial.print("last_millis: ");
+        Serial.println(wspd_last_millis);
       #endif
 
         wspd_last_millis = 0;

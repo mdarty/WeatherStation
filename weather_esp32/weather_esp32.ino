@@ -86,61 +86,6 @@ void wifi_connect(){
   #endif
 }
 
-//https://www.mischianti.org/2021/03/10/esp32-power-saving-modem-and-light-sleep-2/
-//void disableWiFi(){
-//    adc_power_off();
-//    WiFi.disconnect(true);  // Disconnect from the network
-//    WiFi.mode(WIFI_OFF);    // Switch WiFi off
-//    Serial.println("");
-//    Serial.println("WiFi disconnected!");
-//}
-//
-//void enableWiFi(){
-//    adc_power_on();
-//    delay(200);
-// 
-//    WiFi.disconnect(false);  // Reconnect the network
-//    WiFi.mode(WIFI_STA);    // Switch WiFi off
-// 
-//    delay(200);
-// 
-//    wifi_connect();
-//}
- 
-void wakeModemSleep() {
-    #ifdef DEBUG
-      Serial.println("Waking Wifi");
-    #endif
-    setCpuFrequencyMhz(240);
-    //enableWiFi();
-    ModemSleep = false;
-}
-
-void setModemSleep() {
-    #ifdef DEBUG
-      Serial.println("Sleeping Wifi");
-    #endif
-    WiFi.setSleep(true);
-    #ifdef DEBUG
-    if (!setCpuFrequencyMhz(40)){
-        Serial.println("Not valid frequency!");
-    }
-    #else
-    setCpuFrequencyMhz(40);
-    #endif
-    // Use this if 40Mhz is not supported
-    // setCpuFrequencyMhz(80);
-    ModemSleep = true;
-}
-
-//void setModemSleep() {
-//    disableWiFi();
-//    setCpuFrequencyMhz(40);
-//    // Use this if 40Mhz is not supported
-//    // setCpuFrequencyMhz(80);
-//}
-
-
 void callback(char* topic, byte* payload, unsigned int length) {
   // handle message arrived
   char incoming_msg[150];
@@ -172,6 +117,42 @@ void callback(char* topic, byte* payload, unsigned int length) {
 PubSubClient mqtt_client(mqtt_server, mqtt_port, callback, espClient);
 
 
+
+void MQTT_send(const char *topic, const char *JSONmessageBuffer, bool loop = true) {
+    if (!mqtt_client.connected()) {
+        #ifdef DEBUG
+          Serial.println("Connecting to MQTT");
+        #else
+          OTATerminal.println("Connecting to MQTT");
+        #endif
+        mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
+    }
+    if (mqtt_client.connected()) {
+      if (mqtt_client.publish(topic, JSONmessageBuffer) == true) {
+        #ifdef DEBUG
+          Serial.println("Success sending message");
+        #else
+          OTATerminal.println("Success sending message");
+        #endif
+      } else {
+        #ifdef DEBUG
+          Serial.println("Error sending message");
+        #else
+          OTATerminal.println("Error sending message");
+        #endif
+      }
+    }else{
+      #ifdef DEBUG
+        Serial.println("MQTT Failed to connect");
+      #else
+        OTATerminal.println("MQTT Failed to connect");
+      #endif
+    }
+    if (loop) {
+      mqtt_client.loop();
+    }
+}
+
 void MQTT_config_per(String dev, String name, String unit, String id, String topic) {
   StaticJsonDocument<300> doc;
   doc["device_class"] = dev;
@@ -182,19 +163,7 @@ void MQTT_config_per(String dev, String name, String unit, String id, String top
   char JSONmessageBuffer[300];
   serializeJson(doc, JSONmessageBuffer);
   String s = mqtt_topic + topic + "/config";
-  if (mqtt_client.publish(s.c_str(), JSONmessageBuffer) == true) {
-    #ifdef DEBUG
-      Serial.println("Success sending message");
-    #else
-      OTATerminal.println("Success sending message");
-    #endif
-  } else {
-    #ifdef DEBUG
-      Serial.println("Error sending message");
-    #else
-      OTATerminal.println("Error sending message");
-    #endif
-  }
+  MQTT_send(s.c_str(), JSONmessageBuffer, false);
 }
 
 void MQTT_config() {
@@ -214,7 +183,8 @@ void MQTT_config() {
   mqtt_client.loop();
 }
 
-void MQTT_send() {
+
+void MQTT_send_data() {
      //strcat(mqtt_topic, 'Tempature', true (retain))
     //https://techtutorialsx.com/2017/04/29/esp32-sending-json-messages-over-mqtt/
     StaticJsonDocument<300> doc;
@@ -242,20 +212,7 @@ void MQTT_send() {
     #endif
 
     String s = mqtt_topic + "state";
-    if (mqtt_client.publish(s.c_str(), JSONmessageBuffer) == true) {
-      #ifdef DEBUG
-        Serial.println("Success sending message");
-      #else
-        OTATerminal.println("Success sending message");
-      #endif
-    } else {
-      #ifdef DEBUG
-        Serial.println("Error sending message");
-      #else
-        OTATerminal.println("Error sending message");
-      #endif
-    }   
-    mqtt_client.loop();
+    MQTT_send(s.c_str(), JSONmessageBuffer);
 }
 
 void APRS_send(String aprs_msg) {
@@ -265,6 +222,8 @@ void APRS_send(String aprs_msg) {
         //If connection fails do otherstuff for 5 seconds then try again.
         #ifdef DEBUG
           Serial.println("APRS Connection Failed");
+        #else
+          OTATerminal.println("APRS Connection Failed");
         #endif
         five_delay = millis();
       } else {aprs_connected = true;}
@@ -276,10 +235,9 @@ void APRS_send(String aprs_msg) {
       Serial.println(aprs_msg);
       aprs_is.sendMessage(aprs_msg);
     #else
+      OTATerminal.println(aprs_msg);
       aprs_is.sendMessage(aprs_msg);
     #endif
-    aprs_timer = millis();
-    dataReady = false;
     //setModemSleep();
     //Sleep wifi we shouldn't need it for 5 minutes
   }
@@ -375,35 +333,12 @@ void loop() {
 //      //wake wifi if asleep
 //      wakeModemSleep();
 //    }
-    if (!mqtt_client.connected()) {
-//        mqttClient.connect(DEVICE_TOPIC, MQTT_USER, MQTT_PASS, MQTTavltopic, 0, true, "offline");
-        #ifdef DEBUG
-          Serial.println("Connecting to MQTT");
-        #else
-          OTATerminal.println("Connecting to MQTT");
-        #endif
-        mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
-    }
-    if (mqtt_client.connected()) {
-      MQTT_send();
-    }else{
-      #ifdef DEBUG
-        Serial.println("MQTT Failed to connect");
-      #else
-        OTATerminal.println("MQTT Failed to connect");
-      #endif
-    }
+    MQTT_send_data();
     String aprs_msg = String(APRS_USER) + APRS_SSID + APRS_HEADER + "@" + aprsLocation +
-           "_" + Wind.getAPRS() + "t" + format(temp) + Rain.getAPRS() + "h" + format(humidity) +
-           "b" + format_pressure(pressure);
-               
-    #ifdef DEBUG
-      Serial.println("APRS");
-      Serial.println(aprs_msg);
-    #else
-      OTATerminal.println("APRS");
-      OTATerminal.println(aprs_msg);
-      APRS_send(aprs_msg);
-    #endif
+     "_" + Wind.getAPRS() + "t" + format(temp) + Rain.getAPRS() + "h" + format(humidity) +
+     "b" + format_pressure(pressure);
+    APRS_send(aprs_msg);
+    aprs_timer = millis();
+    dataReady = false;
   }
 }

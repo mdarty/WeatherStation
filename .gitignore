@@ -35,9 +35,14 @@
 weather_esp32/settings.h
 Weather/Weather-backups
 Weather/*.zip
+Weather/plots
 
 # vim trash
 ~*
 
 # my trash
 *.bk
+Sleep.h
+
+# KiCad trash
+*auto*save*
