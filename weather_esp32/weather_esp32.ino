@@ -154,7 +154,7 @@ void MQTT_config_per(String dev, String name, String unit, String id, String top
 
 void MQTT_config() {
   MQTT_config_per("Time", "Weather Station Time", " ", "Time", "sensorWSTime");
-  MQTT_config_per("Tempature", "Outdoor Tempature", "F", "Tempature", "sensorWeatherT");
+  MQTT_config_per("Temperature", "Outdoor Temperature", "F", "Temperature", "sensorWeatherT");
   MQTT_config_per("Humidity", "Outdoor Humidity", "%", "Humidity", "sensorWeatherH");
   MQTT_config_per("Pressure", "Outdoor Pressure", "hPa", "Pressure", "sensorWeatherP");
   
@@ -178,7 +178,7 @@ void MQTT_send_data() {
    
     doc["device"] = "Weather Station";
     doc["Time"] = rtc.getTimeDate();
-    doc["Tempature"] = temp;
+    doc["Temperature"] = temp;
     doc["Humidity"] = humidity;
     doc["Pressure"] = pressure;
     doc["Wind Direction"] = Wind.wdir;
