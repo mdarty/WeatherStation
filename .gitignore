@@ -39,6 +39,7 @@ Weather/plots
 
 # vim trash
 ~*
+.*.swap
 
 # my trash
 *.bk

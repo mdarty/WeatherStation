@@ -114,19 +114,11 @@ class RainMath {
       //take sample
       _r_hour_sum();
       
-      #ifdef DEBUG
-        Serial.println("Rain: Midnight");
-      #else
-        OTATerminal.println("Rain: Midnight");
-      #endif
+      post.println("Rain: Midnight");
       
       _r_mid (min, hr, month, day, dow);
       
-      #ifdef DEBUG
-        Serial.println("Rain: 24");
-      #else
-        OTATerminal.println("Rain: 24");
-      #endif
+      post.println("Rain: 24");
       
       _r_24_sum();
       rain_count = 0;

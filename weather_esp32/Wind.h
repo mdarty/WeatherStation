@@ -73,17 +73,6 @@ byte read_wind_dir() {
       // https://cdn.sparkfun.com/assets/d/1/e/0/6/DS-15901-Weather_Meter.pdf
       _wspd = 0.5 + ((1491290 * wspd_count) / (millis() - wspd_last_millis)); //0.5 rounds properly.
 
-      #ifdef DEBUG
-        Serial.print("wspd: ");
-        Serial.println(_wspd);
-        Serial.print("wspd_count: ");
-        Serial.println(wspd_count);
-        Serial.print("millis: ");
-        Serial.println(millis());
-        Serial.print("last_millis: ");
-        Serial.println(wspd_last_millis);
-      #endif
-
         wspd_last_millis = 0;
       if (_gust < _wspd){
         _gust = _wspd;

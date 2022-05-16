@@ -1,7 +1,8 @@
-#define DEBUG
-#ifdef DEBUG
-  bool collect_dots = false;
-#endif
+//#define DEBUG
+#define post OTATerminal
+//#define post Serial
+//#define SEND_APRS
+bool collect_dots = false;
 
 #include "settings.h"
 #include "esp_system.h" //This inclusion configures the peripherals in the ESP system.
@@ -55,14 +56,12 @@ unsigned int pressure = 0;
 
 void I2C_read() {
     bme.setMode(MODE_FORCED);
-//      long startTime = millis();
     while(bme.isMeasuring() == false) ; //Wait for sensor to start measurment
     while(bme.isMeasuring() == true) ; //Hang out while sensor completes the reading    
-//  long endTime = millis();
     temp = bme.readTempF();
     pressure = (bme.readFloatPressure()/10) + 0.5;
-    Serial.println(bme.readFloatPressure());
-    Serial.println(pressure);
+    post.println(bme.readFloatPressure());
+    post.println(pressure);
     humidity = bme.readFloatHumidity() + 0.5; //0.5 rounds properly
     bme.setMode(MODE_SLEEP);
 }
@@ -91,62 +90,49 @@ void callback(char* topic, byte* payload, unsigned int length) {
   char incoming_msg[150];
   char msg[100];
 
-  #ifdef DEBUG
-    Serial.print("Message arrived [");
-    Serial.print(topic);
-    Serial.print("] ");
-  #else
-    OTATerminal.print("Message arrived [");
-    OTATerminal.print(topic);
-    OTATerminal.print("] ");
-  #endif
+  post.print("Message arrived [");
+  post.print(topic);
+  post.print("] ");
 
   for (int i = 0; i < length; i++)
   {
-    #ifdef DEBUG
-      Serial.print((char)payload[i]);
-    #else
-      OTATerminal.print((char)payload[i]);
-    #endif
+    post.print((char)payload[i]);
     incoming_msg[i] = (char)payload[i];
   }
   incoming_msg[length] = 0;
-  Serial.println(" ");
+  post.println(" ");
 }
 
 PubSubClient mqtt_client(mqtt_server, mqtt_port, callback, espClient);
 
-
-
 void MQTT_send(const char *topic, const char *JSONmessageBuffer, bool loop = true) {
     if (!mqtt_client.connected()) {
-        #ifdef DEBUG
-          Serial.println("Connecting to MQTT");
-        #else
-          OTATerminal.println("Connecting to MQTT");
-        #endif
+        post.print("Connecting to MQTT: ");
         mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
+        byte i=0;
+        while (!mqtt_client.connected()) {
+          i++;
+          post.print(".");
+          delay(1);
+          if (i > 200) {
+            post.println(" ");
+            break;
+          }
+        }
     }
     if (mqtt_client.connected()) {
+      post.println("Connected");
+      post.print("Attempting to publish topic: ");
+      post.println(topic);
+      post.println("Sending message to MQTT topic..");
+      post.println(JSONmessageBuffer);
       if (mqtt_client.publish(topic, JSONmessageBuffer) == true) {
-        #ifdef DEBUG
-          Serial.println("Success sending message");
-        #else
-          OTATerminal.println("Success sending message");
-        #endif
+        post.println("Success sending message");
       } else {
-        #ifdef DEBUG
-          Serial.println("Error sending message");
-        #else
-          OTATerminal.println("Error sending message");
-        #endif
+        post.println("Error sending message");
       }
     }else{
-      #ifdef DEBUG
-        Serial.println("MQTT Failed to connect");
-      #else
-        OTATerminal.println("MQTT Failed to connect");
-      #endif
+      post.println("MQTT Failed to connect");
     }
     if (loop) {
       mqtt_client.loop();
@@ -167,8 +153,9 @@ void MQTT_config_per(String dev, String name, String unit, String id, String top
 }
 
 void MQTT_config() {
-  MQTT_config_per("tempature", "Outdoor Tempature", "F", "Tempature", "sensorWeatherT");
-  MQTT_config_per("humidity", "Outdoor Humidity", "%", "Humidity", "sensorWeatherH");
+  MQTT_config_per("Time", "Weather Station Time", " ", "Time", "sensorWSTime");
+  MQTT_config_per("Tempature", "Outdoor Tempature", "F", "Tempature", "sensorWeatherT");
+  MQTT_config_per("Humidity", "Outdoor Humidity", "%", "Humidity", "sensorWeatherH");
   MQTT_config_per("Pressure", "Outdoor Pressure", "hPa", "Pressure", "sensorWeatherP");
   
   MQTT_config_per("Wind Direction", "Wind Direction", "deg", "Wind Direction", "sensorWeatherWD");
@@ -203,14 +190,6 @@ void MQTT_send_data() {
     doc["Battery"] = batteryLevel;
     char JSONmessageBuffer[300];
     serializeJson(doc, JSONmessageBuffer);
-    #ifdef DEBUG
-      Serial.println("Sending message to MQTT topic..");
-      Serial.println(JSONmessageBuffer);
-    #else
-      OTATerminal.println("Sending message to MQTT topic..");
-      OTATerminal.println(JSONmessageBuffer);
-    #endif
-
     String s = mqtt_topic + "state";
     MQTT_send(s.c_str(), JSONmessageBuffer);
 }
@@ -230,16 +209,10 @@ void APRS_send(String aprs_msg) {
   } else {aprs_connected = true;}
   if (aprs_connected) {
     //FW0690>APRS,TCPIP*:@152457h4427.67N/02608.03E_.../...g...t044h86b10201L001WxUno
-  
-    #ifdef DEBUG
-      Serial.println(aprs_msg);
-      aprs_is.sendMessage(aprs_msg);
-    #else
-      OTATerminal.println(aprs_msg);
+    post.println(aprs_msg);
+    #ifdef SEND_APRS
       aprs_is.sendMessage(aprs_msg);
     #endif
-    //setModemSleep();
-    //Sleep wifi we shouldn't need it for 5 minutes
   }
 }
 
@@ -270,6 +243,7 @@ void setup() {
   pinMode(WSPD_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(WSPD_PIN), wspd_inc, FALLING);
   //setModemSleep();//"AB1CDE-10>APRS,AB1CDE:=1234.12N/12345.12E-QTH von AB1CDE"
+  MQTT_config();
   APRS_send(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "_"); // + "-QTH von KF5RHG"); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
 }
 
@@ -280,59 +254,35 @@ void loop() {
   BetterOTA.handle();
   if (millis() - five_seconds > sample_time){
     //Collect wind sample every 5 seconds, this is required for gusts
-    #ifdef DEBUG
-      if (collect_dots) {
-        Serial.print(".");
-      } else{
-        Serial.print("Collect Wind Sample ");
-        collect_dots=true;
-      }
-    #else
-      OTATerminal.println("Collect Wind Sample");
-    #endif
+    if (collect_dots) {
+      post.print(".");
+    } else{
+      post.print("Collect Wind Sample ");
+      collect_dots=true;
+    }
+    post.print(".");
+    
     Wind.collect_sample();
     five_seconds = millis();
   }else if(millis() - five_minutes > report_time){
     //Read everything and calculated needed things
-    #ifdef DEBUG
-      collect_dots = false;
-      Serial.println(" ");
-      Serial.println("I2C Samples");
-    #endif
+    collect_dots = false;
+    post.println(" ");
+    post.println("I2C Samples");
     I2C_read();
-    #ifdef DEBUG
-      Serial.print("Rain Samples");
-    #else
-      OTATerminal.print("Rain Samples");
-    #endif
+    post.print("Rain Samples");
     Rain.calc(rtc.getMinute(), rtc.getHour(), rtc.getMonth(), rtc.getDay(), rtc.getDayofWeek());
-    #ifdef DEBUG
-      Serial.println(" ");
-      Serial.println("Wind Samples");
-    #else
-      OTATerminal.println(" ");
-      OTATerminal.println("Wind Samples");
-    #endif
+    post.println(" ");
+    post.println("Wind Samples");
     Wind.calc();
-    #ifdef DEBUG
-      Serial.println("Done Calc Samples");
-    #else
-      OTATerminal.println("Done Calc Samples");
-    #endif
+    post.println("Done Calc Samples");
     batteryLevel = map(analogRead(bat_pin), 0.0f, 4095.0f, 0, 100);
     five_minutes = millis();
     dataReady = true;
   }else if( dataReady && (millis() - aprs_timer > report_time) && (millis() - five_delay > 5000) ){
-    //Turn on wifi and publish all the things.
-    #ifdef DEBUG
-      collect_dots = false;
-      Serial.println(" ");
-      Serial.println("Report Sample");
-    #endif
-//    if (ModemSleep) {
-//      //wake wifi if asleep
-//      wakeModemSleep();
-//    }
+    collect_dots = false;
+    post.println(" ");
+    post.println("Report Sample");
     MQTT_send_data();
     String aprs_msg = String(APRS_USER) + APRS_SSID + APRS_HEADER + "@" + aprsLocation +
      "_" + Wind.getAPRS() + "t" + format(temp) + Rain.getAPRS() + "h" + format(humidity) +
