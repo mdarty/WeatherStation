@@ -27,7 +27,9 @@ byte batteryLevel = 0;
 //MQTT
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+//#include <StreamUtils.h>
 WiFiClient espClient;
+const int mqtt_buf = 528;
 
 // Required for I2C Sensors
 #include <Wire.h>
@@ -105,7 +107,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 PubSubClient mqtt_client(mqtt_server, mqtt_port, callback, espClient);
 
-void MQTT_send(const char *topic, const char *JSONmessageBuffer, bool loop = true) {
+void MQTT_send(const char *topic, JsonDocument *doc) {
     if (!mqtt_client.connected()) {
         post.print("Connecting to MQTT: ");
         mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
@@ -125,8 +127,13 @@ void MQTT_send(const char *topic, const char *JSONmessageBuffer, bool loop = tru
       post.print("Attempting to publish topic: ");
       post.println(topic);
       post.println("Sending message to MQTT topic..");
-      post.println(JSONmessageBuffer);
-      if (mqtt_client.publish(topic, JSONmessageBuffer) == true) {
+      
+      char JSONmessageBuffer[mqtt_buf];
+      size_t n = serializeJson(*doc, JSONmessageBuffer);
+      post.print("Size: ");
+      post.println(n);
+      if (mqtt_client.publish(topic, JSONmessageBuffer, n)) {
+//      if (mqtt_client.publish(topic, JSONmessageBuffer, n) == true) {
         post.println("Success sending message");
       } else {
         post.println("Error sending message");
@@ -134,65 +141,108 @@ void MQTT_send(const char *topic, const char *JSONmessageBuffer, bool loop = tru
     }else{
       post.println("MQTT Failed to connect");
     }
-    if (loop) {
-      mqtt_client.loop();
-    }
 }
 
 void MQTT_config_per(String dev, String name, String unit, String id, String topic) {
-  StaticJsonDocument<300> doc;
+  StaticJsonDocument<mqtt_buf> doc;
   doc["device_class"] = dev;
   doc["name"] = name;
   doc["state_topic"] = mqtt_topic;
   doc["unit_of_measurment"] = unit;
   doc["value_template"] = "{{value_json."+ id + "}}";
-  char JSONmessageBuffer[300];
-  serializeJson(doc, JSONmessageBuffer);
+  //doc["value"] = mqtt_topic + "data";
   String s = mqtt_topic + topic + "/config";
-  MQTT_send(s.c_str(), JSONmessageBuffer, false);
+  MQTT_send(s.c_str(), &doc);
 }
 
 void MQTT_config() {
   MQTT_config_per("Time", "Weather Station Time", " ", "Time", "sensorWSTime");
-  MQTT_config_per("Temperature", "Outdoor Temperature", "F", "Temperature", "sensorWeatherT");
-  MQTT_config_per("Humidity", "Outdoor Humidity", "%", "Humidity", "sensorWeatherH");
-  MQTT_config_per("Pressure", "Outdoor Pressure", "hPa", "Pressure", "sensorWeatherP");
+  MQTT_config_per("Temperature", "Outdoor Temperature", "F", "Temp", "sensorWeatherT");
+  MQTT_config_per("Humidity", "Outdoor Humidity", "%", "RH", "sensorWeatherH");
+  MQTT_config_per("Pressure", "Outdoor Pressure", "hPa", "Pres", "sensorWeatherP");
   
-  MQTT_config_per("Wind Direction", "Wind Direction", "deg", "Wind Direction", "sensorWeatherWD");
-  MQTT_config_per("Wind Speed", "Wind Speed", "mph", "Wind Speed", "sensorWeatherWS");
-  MQTT_config_per("Wind Gust", "Wind Gust", "mph", "Wind Gust", "sensorWeatherWG");
+  MQTT_config_per("Wind_Direction", "Wind_Direction", "deg", "wDir", "sensorWeatherWD");
+  MQTT_config_per("Wind_Speed", "Wind_Speed", "mph", "wSpd", "sensorWeatherWS");
+  MQTT_config_per("Wind_Gust", "Wind_Gust", "mph", "wGust", "sensorWeatherWG");
 
-  MQTT_config_per("Rain Last hr", "Rain Last hr", "mph", "Rain Last hr", "sensorWeatherR");
-  MQTT_config_per("Rain Since Midnight", "Rain Since Midnight", "mph", "Rain Since Midnight", "sensorWeatherRM");
-  MQTT_config_per("Rain Last 24 hrs", "Rain Last 24 hours", "mph", "Rain Last 24 hrs", "sensorWeatherRD");
+  MQTT_config_per("Rain_Last_hr", "Rain_Last_hr", "in", "rLstHr", "sensorWeatherR");
+  MQTT_config_per("Rain_Since_Midnight", "Rain_Since_Midnight", "in", "rMidngt", "sensorWeatherRM");
+  MQTT_config_per("Rain_Last_24_hrs", "Rain_Last_24_hours", "in", "rLst24hrs", "sensorWeatherRD");
+  MQTT_config_per("SoilMoisture", "SoilMoisture", "%", "SoilMoisture", "sensorWeatherSM");
 
-  MQTT_config_per("Battery", "Weather Battery", "%", "Battery", "sensorWeatherB");
+  MQTT_config_per("Battery", "Weather_Battery", "%", "Battery", "sensorWeatherB");
   mqtt_client.loop();
 }
 
+void MQTT_send_data_post(String id, String msg){
+  String s = mqtt_topic + id + "/data";
+  if (mqtt_client.publish(s.c_str(), msg.c_str())) {
+    post.println("Success sending message: " + id);
+  } else {
+    post.println("Error sending message: " + id);
+  }
+}
 
 void MQTT_send_data() {
      //strcat(mqtt_topic, 'Tempature', true (retain))
     //https://techtutorialsx.com/2017/04/29/esp32-sending-json-messages-over-mqtt/
-    StaticJsonDocument<300> doc;
+    //https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
+    StaticJsonDocument<mqtt_buf> doc;
    
-    doc["device"] = "Weather Station";
-    doc["Time"] = rtc.getTimeDate();
-    doc["Temperature"] = temp;
-    doc["Humidity"] = humidity;
-    doc["Pressure"] = pressure;
-    doc["Wind Direction"] = Wind.wdir;
-    doc["Wind Speed"] = Wind.wspd;
-    doc["Wind Gust"] = Wind.gust;
-    doc["Rain Last hr"] = Rain.r_hour_sum;
-    doc["Rain Since Midnight"] = Rain.r_mid;
-    doc["Rain Last 24 hrs"] = Rain.r_24_sum;
+    doc["device"] = "WeatherStation";
+    doc["Time"] = rtc.getTime("%FT%T");
+    
+    doc["Temp"] = temp;
+    doc["RH"] = humidity;
+    doc["Pres"] = pressure;
+    
+    doc["wDir"] = Wind.wdir;
+    doc["wSpd"] = Wind.wspd;
+    doc["wGust"] = Wind.gust;
+    
+    doc["rLstHr"] = (float) Rain.r_hour_sum/100.0;
+    doc["rMidngt"] = (float) Rain.r_mid/100.0;
+    doc["rLst24hrs"] = (float) Rain.r_24_sum/100.0;
+    doc["SoilMoisture"] = Rain.soil_moisture;
+    
     doc["Battery"] = batteryLevel;
-    char JSONmessageBuffer[300];
-    serializeJson(doc, JSONmessageBuffer);
-    String s = mqtt_topic + "state";
-    MQTT_send(s.c_str(), JSONmessageBuffer);
+
+    String s = mqtt_topic + "data";
+    MQTT_send(s.c_str(), &doc);
+    
+//      if (!mqtt_client.connected()) {
+//        post.print("Connecting to MQTT: ");
+//        mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
+//        byte i=0;
+//        while (!mqtt_client.connected()) {
+//          i++;
+//          post.print(".");
+//          delay(1);
+//          if (i > 200) {
+//            post.println(" ");
+//            break;
+//          }
+//        }
+//    }
+//    if (mqtt_client.connected()) {
+//      post.println("Connected");
+//      MQTT_send_data_post("Time", String(rtc.getEpoch()));
+//      MQTT_send_data_post("Temp", String(temp));
+//      MQTT_send_data_post("RH", String(humidity));
+//      MQTT_send_data_post("Pres", String(pressure));
+//      MQTT_send_data_post("wDir", String(Wind.wdir));
+//      MQTT_send_data_post("wSpd", String(Wind.wspd));
+//      MQTT_send_data_post("wGust", String(Wind.gust));
+//      MQTT_send_data_post("rLstHr", String(Rain.r_hour_sum));
+//      MQTT_send_data_post("rMidngt", String(Rain.r_mid));
+//      MQTT_send_data_post("rLst24hrs", String(Rain.r_24_sum));
+//      MQTT_send_data_post("Battery", String(batteryLevel));
+//      mqtt_client.loop();
+//    }else{
+//      post.println("MQTT Failed to connect");
+//    }
 }
+
 
 void APRS_send(String aprs_msg) {
   if(!aprs_is.connected()){
@@ -243,6 +293,7 @@ void setup() {
   pinMode(WSPD_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(WSPD_PIN), wspd_inc, FALLING);
   //setModemSleep();//"AB1CDE-10>APRS,AB1CDE:=1234.12N/12345.12E-QTH von AB1CDE"
+  mqtt_client.setBufferSize(mqtt_buf);
   MQTT_config();
   APRS_send(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "_"); // + "-QTH von KF5RHG"); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
 }

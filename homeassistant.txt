@@ -1,0 +1,89 @@
+sensor:
+  - platform: mqtt
+    name: "Outside temp"
+    device_class: "temperature"
+    unique_id: "weather_station_temp"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.temp }}"
+    unit_of_measurement: "F"
+  - platform: mqtt
+    name: "Outside Humidity"
+    device_class: "humidity"
+    unique_id: "weather_station_humidity"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.RH }}"
+    unit_of_measurement: "%"
+  - platform: mqtt
+    name: "WS Battery"
+    device_class: "battery"
+    unique_id: "weather_station_battery"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.Battery }}"
+    unit_of_measurement: "%"
+  - platform: mqtt
+    name: "Barometric Pressure"
+    device_class: "pressure"
+    unique_id: "weather_station_pressure"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.Pres }}"
+    unit_of_measurement: "hPa"
+  - platform: mqtt
+    name: "Wind Direction"
+    unique_id: "weather_station_wind_direction"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.wDir }}"
+    unit_of_measurement: "deg"
+  - platform: mqtt
+    name: "Wind Speed"
+    unique_id: "weather_station_wind_speed"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.wSpd }}"
+    unit_of_measurement: "mph"
+  - platform: mqtt
+    name: "Wind Gust"
+    unique_id: "weather_station_wind_gust"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.wGust }}"
+    unit_of_measurement: "mph"
+  - platform: mqtt
+    name: "Rain Last Hour"
+    unique_id: "weather_station_rain_last_hour"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.rLstHr }}"
+    unit_of_measurement: "in"
+  - platform: mqtt
+    name: "Rain Last 24 Hours"
+    unique_id: "weather_station_rain_last_24hrs"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.rLst24hrs }}"
+    unit_of_measurement: "in"
+  - platform: mqtt
+    name: "Rain Last Since Midnight"
+    unique_id: "weather_station_rain_since_midnight"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.rMidngt }}"
+    unit_of_measurement: "in"
+  - platform: mqtt
+    name: "Soil Moisture"
+    unique_id: "weather_station_soil_moisture"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.SoilMoisture }}"
+  - platform: mqtt
+    name: "WS Time"
+    device_class: "timestamp"
+    unique_id: "weather_station_timestamp"
+    qos: 0
+    state_topic: "weather/station/sensors/data"
+    value_template: "{{ value_json.Time }}"
+    unit_of_measurement: "%"

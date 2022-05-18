@@ -15,6 +15,8 @@ class WindMath {
     unsigned int _wspd_count;
     unsigned int _wspd_sum;
     unsigned int _wspd;
+    unsigned int _wdir_count;
+    unsigned int _wdir_sum;
 
 byte read_wind_dir() {
         //https://cdn.sparkfun.com/assets/d/1/e/0/6/DS-15901-Weather_Meter.pdf
@@ -79,12 +81,22 @@ byte read_wind_dir() {
       }
       _wspd_sum += _wspd;
       _wspd_count++;
+
+      //Average windir
+      _wdir_sum += read_wind_dir();
+      _wdir_count++;
     }
     
     void calc() {
-      wdir = read_wind_dir();
+      wdir = _wdir_sum/_wdir_count + 0.5;
       gust = _gust; //highest 5 second run over 5 minutes;
-      _gust = 0; //using private variable to keep
       wspd = _wspd_sum / _wspd_count; //Average over 5 minutes
+
+      //resetting recorders
+      _gust = 0;
+      _wdir_sum = 0;
+      _wdir_count = 0;
+      _wspd_sum = 0;
+      _wspd_count = 0;
     }
 };

@@ -98,12 +98,24 @@ class RainMath {
       }
       r_hour_sum = rain_hour * _bucket + 0.5; // 0.5 + rounds properly when turning to int
     }
+
+    void _soil_moisture(){
+      float V = map(analogRead(SOIL_PIN), 0, 4096, 0, 3.3);
+      if (V > 0.8) {
+        soil_moisture = 0;
+      } else if (V < 0.46) {
+        soil_moisture = 100;
+      } else {
+        soil_moisture = (0.8-V) / (0.8-0.46) * 100.0;
+      }
+    }
         
   public:
     volatile unsigned long r_mid_changed;
     unsigned int r_hour_sum;
     unsigned int r_24_sum;
     unsigned int r_mid;
+    unsigned int soil_moisture;
 
     String getAPRS() {
       //Generate Rain portion of APRS string
@@ -122,5 +134,7 @@ class RainMath {
       
       _r_24_sum();
       rain_count = 0;
+
+      _soil_moisture();
     }
 };
