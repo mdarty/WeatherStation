@@ -57,15 +57,19 @@ const char* mqtt_user = "MQTT_USER";
 const char* mqtt_pass = "MQTT_PASS";
 String hassio_topic = "homeassistant/sensor/weather/station/";
 String mqtt_topic = "weather/station/sensor/";
+String hassio_topic = "homeassistant/sensor/" + String(mqtt_clientID) + "/";
+//String mqtt_topic = String(mqtt_clientID) + "/sensor/";
+//const int mqtt_buf = 528;
+const int mqtt_buf = 1024;
+const char* mqtt_LWT_p = "Online";
+String mqtt_LWT = hassio_topic + "LWT";
+String mqtt_state_topic = hassio_topic + "state";
 
 String mqtt_configs(byte i) {
-  StaticJsonDocument<mqtt_buf> conf_doc;
-  String out = "";
-  conf_doc["state_topic"] = mqtt_topic + "state";
-
+  DynamicJsonDocument conf_doc(mqtt_buf);
   JsonObject conf_dev  = conf_doc.createNestedObject("dev");
 
-  conf_dev["name"] = "Weather Station";
+  conf_dev["name"] = mqtt_clientID;
   conf_dev["mf"] = "Darty";
   conf_dev["sw"] = "0.1";
   conf_dev["ml"] = "Prototype";
@@ -74,81 +78,72 @@ String mqtt_configs(byte i) {
   ids.add("Prototype");
 
   if (i == 0) {
-    conf_doc["config_topic"] = hassio_topic + "Temperature" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_temp";
     conf_doc["device_class"] = "temperature";
     conf_doc["name"] = "Outside Temperature";
-    conf_doc["unique_id"] = "weather_station_temp";
     conf_doc["unit_of_meas"] = "°F";
-    conf_doc["value_template"] = "{{value_json.Temp }}";
+    conf_doc["value_template"] = "{{ value_json.Temp }}";
   }
   
   if (i == 1) {  
     //Humidity
-    conf_doc["config_topic"] = hassio_topic + "Humidity" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_humidity";
     conf_doc["device_class"] = "humidity";
     conf_doc["name"] = "Outside Humidity";
-    conf_doc["unit_of_meas"] = "%";
-    conf_doc["unique_id"] = "weather_station_humidity";
     conf_doc["unit_of_meas"] = "%";
     conf_doc["value_template"] = "{{ value_json.RH }}";
   }
 
   if (i == 2) {
     //Pressure
-    conf_doc["config_topic"] = hassio_topic + "Pressure" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_pressure";
     conf_doc["device_class"] = "pressure";
     conf_doc["name"] = "Outdoor Temperature";
-    conf_doc["unique_id"] = "weather_station_pressure";
     conf_doc["unit_of_meas"] = "hPa";
     conf_doc["value_template"] = "{{ value_json.Pres }}";
   }
 
   if (i == 3) {
     //Wind Direction
-    conf_doc["config_topic"] = hassio_topic + "WindDirection" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_wind_direction";
     conf_doc["name"] = "Wind Direction";
     conf_doc["icon"] = "mdi:compass";
-    conf_doc["unique_id"] = "weather_station_wind_direction";
     conf_doc["unit_of_meas"] = "deg";
     conf_doc["value_template"] = "{{ value_json.wDir }}";
   }
 
   if (i == 4) {
     // Wind Speed
-    conf_doc["config_topic"] = hassio_topic + "WindSpeed" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_wind_speed";
     conf_doc["name"] = "Wind Speed";
     conf_doc["icon"] = "mdi:weather-windy";
-    conf_doc["unique_id"] = "weather_station_wind_speed";
     conf_doc["unit_of_meas"] = "mph";
     conf_doc["value_template"] = "{{ value_json.wSpd }}";
    }
 
   if (i == 5) {
     // Wind Gust
-    conf_doc["config_topic"] = hassio_topic + "WindGust" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_wind_gust";
     conf_doc["name"] = "Wind Gust";
     conf_doc["icon"] = "mdi:weather-windy";
-    conf_doc["unique_id"] = "weather_station_wind_gust";
     conf_doc["unit_of_meas"] = "mph";
     conf_doc["value_template"] = "{{ value_json.wGust }}";
   }
 
   if (i == 6) {
     //Rain Last Hour
-    conf_doc["config_topic"] = hassio_topic + "RainLastHour" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_rain_last_hour";
     conf_doc["name"] = "Rain Last Hour";
     conf_doc["icon"] = "mdi:weather-rainy";
-    conf_doc["unique_id"] = "weather_station_rain_last_hour";
     conf_doc["unit_of_meas"] = "in";
     conf_doc["value_template"] = "{{ value_json.rLstHr }}";
   }
 
   if (i == 7) {
     //Rain Last 24 hours
-    conf_doc["config_topic"] = hassio_topic + "RainLast24" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_rain_last_24hrs";
     conf_doc["name"] = "Rain Last 24 Hours";
-    conf_doc["icon"] = "mdi:weather-rainy";
-    conf_doc["unique_id"] = "weather_station_rain_last_24hrs"; 
+    conf_doc["icon"] = "mdi:weather-rainy"; 
     //conf_doc["state_topic"] = mqtt_topic;
     conf_doc["unit_of_meas"] = "in";
     conf_doc["value_template"] = "{{ value_json.rLst24hrs }}";
@@ -156,43 +151,46 @@ String mqtt_configs(byte i) {
 
   if (i == 8) {
     //Rain Since Midnight
-    conf_doc["config_topic"] = hassio_topic + "RainSinceMidnight" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_rain_since_midnight";
     conf_doc["name"] = "Rain Since Midnight";
     conf_doc["icon"] = "mdi:weather-rainy";
-    conf_doc["unique_id"] = "weather_station_rain_since_midnight";
     conf_doc["unit_of_meas"] = "in";
     conf_doc["value_template"] = "{{ value_json.rMidngt }}";
   }
 
   if (i == 9) {
     //Soil Moisture
-    conf_doc["config_topic"] = hassio_topic + "SoilMoisture" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_soil_moisture";
     conf_doc["name"] = "Soil Moisture";
     conf_doc["icon"] = "mdi:water-percent";
-    conf_doc["unique_id"] = "weather_station_soil_moisture";
     conf_doc["unit_of_meas"] = "%";
     conf_doc["value_template"] = "{{ value_json.SoilMoisture }}";
   }
 
   if (i == 10) {
     //Battery
-    conf_doc["config_topic"] = hassio_topic + "Battery" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_battery";
     conf_doc["device_class"] = "battery";
     conf_doc["name"] = "WS_Battery";
     conf_doc["unit_of_meas"] = "F";
-    conf_doc["unique_id"] = "weather_station_battery";
     conf_doc["unit_of_meas"] = "%";
     conf_doc["value_template"] = "{{value_json.Battery}}";
   }
 
   if (i == 11) {
     //Time
-    conf_doc["config_topic"] = hassio_topic + "Timestamp" + "/config";
+    conf_doc["unique_id"] = String(mqtt_clientID) + "_timestamp";
     conf_doc["device_class"] = "timestamp";
-    conf_doc["name"] = "WS Time";
-    conf_doc["unique_id"] = "weather_station_timestamp"; 
+    conf_doc["name"] = "WS Time"; 
     conf_doc["value_template"] = "{{value_json.Time}}";
   }
+
+  conf_doc["avty_t"] = mqtt_LWT;
+  conf_doc["pl_avail"] = "Online";
+  conf_doc["pl_not_avail"] = "Offline";
+  conf_doc["config_topic"] = hassio_topic + conf_doc["unique_id"].as<String>() + "/config";
+  conf_doc["state_topic"] = mqtt_state_topic;
+  String out = "";
   serializeJson(conf_doc, out);
   return out;
 }

@@ -1,7 +1,7 @@
 //#define DEBUG
 #define post OTATerminal
 //#define post Serial
-#define SEND_APRS
+//#define SEND_APRS
 
 //Libraries
 #include <WiFi.h>
@@ -12,7 +12,6 @@
 #include <ArduinoJson.h>
 //#include <StreamUtils.h>
 WiFiClient espClient;
-const int mqtt_buf = 528;
 
 
 #include "esp_system.h" //This inclusion configures the peripherals in the ESP system.
@@ -109,7 +108,7 @@ void wifi_connect(){
   #endif
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
+void mqtt_callback(char* topic, byte* payload, unsigned int length) {
   // handle message arrived
   char incoming_msg[150];
   char msg[100];
@@ -127,12 +126,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
   post.println(" ");
 }
 
-PubSubClient mqtt_client(mqtt_server, mqtt_port, callback, espClient);
+PubSubClient mqtt_client(mqtt_server, mqtt_port, mqtt_callback, espClient);
 
 void MQTT_send(String topic, String JSONmessageBuffer) {
     if (!mqtt_client.connected()) {
         post.print("Connecting to MQTT: ");
-        mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
+        mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass, mqtt_LWT.c_str(), 0, false, mqtt_LWT_p);
         byte i=0;
         while (!mqtt_client.connected()) {
           i++;
@@ -170,7 +169,7 @@ void MQTT_config() {
 //  StaticJsonDocument<mqtt_buf> doc;
   String out;
   String topic = "";
-  StaticJsonDocument<mqtt_buf> doc;
+  DynamicJsonDocument doc(mqtt_buf);
   for (byte i=0; i < conf_count; i++) {
     out = mqtt_configs(i);
     deserializeJson(doc, out);
@@ -178,6 +177,8 @@ void MQTT_config() {
     doc.remove("config_topic");
     out = "";
     serializeJson(doc, out);
+    post.println(topic);
+    post.println(out);
     MQTT_send(topic, out);
     doc.clear();
   }
@@ -197,9 +198,9 @@ void MQTT_send_data() {
      //strcat(mqtt_topic, 'Tempature', true (retain))
     //https://techtutorialsx.com/2017/04/29/esp32-sending-json-messages-over-mqtt/
     //https://codeblog.jonskeet.uk/2011/04/05/of-memory-and-strings/
-    StaticJsonDocument<mqtt_buf> doc;
+    DynamicJsonDocument doc(mqtt_buf);
    
-    doc["device"] = "WeatherStation";
+    doc["device"] = mqtt_clientID;
     doc["Time"] = rtc.getTime("%FT%T");
     
     doc["Temp"] = temp;
@@ -217,11 +218,10 @@ void MQTT_send_data() {
     
     doc["Battery"] = batteryLevel;
 
-    String s = mqtt_topic + "state";
 //    char out[mqtt_buf];
     String out = "";
     serializeJson(doc, out);
-    MQTT_send(s, out);
+    MQTT_send(mqtt_state_topic, out);
 }
 
 void APRS_send(String aprs_msg) {
@@ -278,8 +278,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(WSPD_PIN), wspd_inc, FALLING);
   //setModemSleep();//"AB1CDE-10>APRS,AB1CDE:=1234.12N/12345.12E-QTH von AB1CDE"
   mqtt_client.setBufferSize(mqtt_buf);
+  mqtt_client.setKeepAlive(report_time+1000);
   MQTT_config();
-  APRS_send(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "-WeatherStation"); // + "-QTH von KF5RHG"); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
+  APRS_send(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "_WeatherStation"); // + "-QTH von KF5RHG"); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
 }
 
 void loop() {
