@@ -47,3 +47,6 @@ Sleep.h
 
 # KiCad trash
 *auto*save*
+
+# Libreoffice trash
+.~*

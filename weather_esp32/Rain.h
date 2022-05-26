@@ -2,8 +2,8 @@ unsigned int rain_count = 0;
 unsigned int rain_count_mid = 0;
 unsigned long r_mid_change = 0;
 volatile unsigned long rain_last_micros;
-const unsigned int _24_len = 86400000/report_time; //86,400,000 milliseconds in 24 hours, sampled every 5 minutes
-const unsigned int _hour_len = 3600000/report_time; //3,600,000 milliseconds in an hour, sampled every 5 minutes
+const unsigned int _24_len = 86400000/report_time + 0.5; //86,400,000 milliseconds in 24 hours, sampled every 5 minutes
+const unsigned int _hour_len = 3600000/report_time + 0.5; //3,600,000 milliseconds in an hour, sampled every 5 minutes
 //#define MID_WAIT 3600000 // don't even look for an hour
 
 void rain_inc() {
@@ -27,6 +27,14 @@ class RainMath {
     volatile unsigned long _last_hour;
     byte _hour_index = 0;
 
+    float readChannel(ADS1115_MUX channel) {
+      float voltage = 0.0;
+      adc.setCompareChannels(channel);
+      adc.startSingleMeasurement();
+      while(adc.isBusy()){}
+      voltage = adc.getResult_mV(); // alternative: getResult_mV for Millivolt
+      return voltage;
+    }
     
     bool IsDST(byte month, byte day, byte dow) {
       //Return DaylightSavingsTime is true or false
@@ -93,22 +101,25 @@ class RainMath {
       _hour_array[_hour_next()] = rain_count;
       
       // byte isn't large enough
-      for (unsigned int i = 0; i < _24_len; i++) {
+      for (unsigned int i = 0; i < _hour_len; i++) {
         rain_hour += _hour_array[i];
       }
       r_hour_sum = rain_hour * _bucket + 0.5; // 0.5 + rounds properly when turning to int
     }
 
     void _soil_moisture(){
-      float V = map(analogRead(SOIL_PIN), 0, 4096, 0, 3.3);
-      if (V > 0.8) {
+      float V = readChannel(SOIL_PIN);
+      const unsigned int H = 800;
+      const unsigned int L = 460;
+      if (V > H) {
         soil_moisture = 0;
-      } else if (V < 0.46) {
+      } else if (V < L) {
         soil_moisture = 100;
       } else {
-        soil_moisture = (0.8-V) / (0.8-0.46) * 100.0;
+        soil_moisture = (H-L) / (H-L) * 100.0;
       }
     }
+
         
   public:
     volatile unsigned long r_mid_changed;

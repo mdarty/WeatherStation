@@ -1,28 +1,11 @@
 //#define DEBUG
 #define post OTATerminal
 //#define post Serial
-//#define SEND_APRS
-bool collect_dots = false;
+#define SEND_APRS
 
-#include "settings.h"
-#include "esp_system.h" //This inclusion configures the peripherals in the ESP system.
-
+//Libraries
 #include <WiFi.h>
 #include "driver/adc.h"
-
-#include <BetterOTA.h>
-
-//APRS
-#include <APRS-IS.h>
-String aprs_msg;
-bool aprs_connected = false;
-bool dataReady = false;
-
-//Battery
-byte batteryLevel = 0;
-
-//NTP
-#include <ESP32Time.h>
 
 //MQTT
 #include <PubSubClient.h>
@@ -31,13 +14,41 @@ byte batteryLevel = 0;
 WiFiClient espClient;
 const int mqtt_buf = 528;
 
+
+#include "esp_system.h" //This inclusion configures the peripherals in the ESP system.
+
+#include <BetterOTA.h>
+
+//APRS
+#include <APRS-IS.h>
+
+//NTP
+#include <ESP32Time.h>
+
 // Required for I2C Sensors
+#include <ADS1115_WE.h> 
 #include <Wire.h>
 #include "SparkFunBME280.h"
 
+//My stuff
+#include "settings.h"
 #include "format_text.h"
+
+ADS1115_WE adc = ADS1115_WE(I2C_ADDRESS);
+
 #include "Rain.h"
 #include "Wind.h"
+
+//Variables
+bool collect_dots = false;
+
+//APRS
+String aprs_msg;
+bool aprs_connected = false;
+bool dataReady = false;
+
+//Battery
+byte batteryLevel = 0;
 
 //timers
 volatile unsigned long five_seconds = millis();
@@ -56,6 +67,16 @@ byte temp = 0;
 byte humidity = 0;
 unsigned int pressure = 0;
 
+float readChannel(ADS1115_MUX channel) {
+  float voltage = 0.0;
+  adc.setCompareChannels(channel);
+  adc.startSingleMeasurement();
+  while(adc.isBusy()){}
+  voltage = adc.getResult_mV(); // alternative: getResult_mV for Millivolt
+  return voltage;
+}
+    
+
 void I2C_read() {
     bme.setMode(MODE_FORCED);
     while(bme.isMeasuring() == false) ; //Wait for sensor to start measurment
@@ -66,6 +87,7 @@ void I2C_read() {
     post.println(pressure);
     humidity = bme.readFloatHumidity() + 0.5; //0.5 rounds properly
     bme.setMode(MODE_SLEEP);
+    batteryLevel = map(readChannel(bat_pin), bat_emp, bat_full, 0, 100);
 }
 
 WindMath Wind;
@@ -107,7 +129,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 PubSubClient mqtt_client(mqtt_server, mqtt_port, callback, espClient);
 
-void MQTT_send(const char *topic, JsonDocument *doc) {
+void MQTT_send(String topic, String JSONmessageBuffer) {
     if (!mqtt_client.connected()) {
         post.print("Connecting to MQTT: ");
         mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
@@ -128,11 +150,11 @@ void MQTT_send(const char *topic, JsonDocument *doc) {
       post.println(topic);
       post.println("Sending message to MQTT topic..");
       
-      char JSONmessageBuffer[mqtt_buf];
-      size_t n = serializeJson(*doc, JSONmessageBuffer);
-      post.print("Size: ");
-      post.println(n);
-      if (mqtt_client.publish(topic, JSONmessageBuffer, n)) {
+//      char JSONmessageBuffer[mqtt_buf];
+//      size_t n = serializeJson(doc, JSONmessageBuffer);
+//      post.print("Size: ");
+//      post.println(n);
+      if (mqtt_client.publish(topic.c_str(), JSONmessageBuffer.c_str())) {
 //      if (mqtt_client.publish(topic, JSONmessageBuffer, n) == true) {
         post.println("Success sending message");
       } else {
@@ -143,45 +165,33 @@ void MQTT_send(const char *topic, JsonDocument *doc) {
     }
 }
 
-void MQTT_config_per(String dev, String name, String unit, String id, String topic) {
-  StaticJsonDocument<mqtt_buf> doc;
-  doc["device_class"] = dev;
-  doc["name"] = name;
-  doc["state_topic"] = mqtt_topic;
-  doc["unit_of_measurment"] = unit;
-  doc["value_template"] = "{{value_json."+ id + "}}";
-  //doc["value"] = mqtt_topic + "data";
-  String s = mqtt_topic + topic + "/config";
-  MQTT_send(s.c_str(), &doc);
-}
-
 void MQTT_config() {
-  MQTT_config_per("Time", "Weather Station Time", " ", "Time", "sensorWSTime");
-  MQTT_config_per("Temperature", "Outdoor Temperature", "F", "Temp", "sensorWeatherT");
-  MQTT_config_per("Humidity", "Outdoor Humidity", "%", "RH", "sensorWeatherH");
-  MQTT_config_per("Pressure", "Outdoor Pressure", "hPa", "Pres", "sensorWeatherP");
-  
-  MQTT_config_per("Wind_Direction", "Wind_Direction", "deg", "wDir", "sensorWeatherWD");
-  MQTT_config_per("Wind_Speed", "Wind_Speed", "mph", "wSpd", "sensorWeatherWS");
-  MQTT_config_per("Wind_Gust", "Wind_Gust", "mph", "wGust", "sensorWeatherWG");
-
-  MQTT_config_per("Rain_Last_hr", "Rain_Last_hr", "in", "rLstHr", "sensorWeatherR");
-  MQTT_config_per("Rain_Since_Midnight", "Rain_Since_Midnight", "in", "rMidngt", "sensorWeatherRM");
-  MQTT_config_per("Rain_Last_24_hrs", "Rain_Last_24_hours", "in", "rLst24hrs", "sensorWeatherRD");
-  MQTT_config_per("SoilMoisture", "SoilMoisture", "%", "SoilMoisture", "sensorWeatherSM");
-
-  MQTT_config_per("Battery", "Weather_Battery", "%", "Battery", "sensorWeatherB");
+//  String topic;
+//  StaticJsonDocument<mqtt_buf> doc;
+  String out;
+  String topic = "";
+  StaticJsonDocument<mqtt_buf> doc;
+  for (byte i=0; i < conf_count; i++) {
+    out = mqtt_configs(i);
+    deserializeJson(doc, out);
+    topic = doc["config_topic"].as<String>();
+    doc.remove("config_topic");
+    out = "";
+    serializeJson(doc, out);
+    MQTT_send(topic, out);
+    doc.clear();
+  }
   mqtt_client.loop();
 }
 
-void MQTT_send_data_post(String id, String msg){
-  String s = mqtt_topic + id + "/data";
-  if (mqtt_client.publish(s.c_str(), msg.c_str())) {
-    post.println("Success sending message: " + id);
-  } else {
-    post.println("Error sending message: " + id);
-  }
-}
+//void MQTT_send_data_post(String id, String msg){
+//  String s = mqtt_topic + id + "/data";
+//  if (mqtt_client.publish(s.c_str(), msg.c_str())) {
+//    post.println("Success sending message: " + id);
+//  } else {
+//    post.println("Error sending message: " + id);
+//  }
+//}
 
 void MQTT_send_data() {
      //strcat(mqtt_topic, 'Tempature', true (retain))
@@ -207,47 +217,17 @@ void MQTT_send_data() {
     
     doc["Battery"] = batteryLevel;
 
-    String s = mqtt_topic + "data";
-    MQTT_send(s.c_str(), &doc);
-    
-//      if (!mqtt_client.connected()) {
-//        post.print("Connecting to MQTT: ");
-//        mqtt_client.connect(mqtt_clientID, mqtt_user, mqtt_pass);
-//        byte i=0;
-//        while (!mqtt_client.connected()) {
-//          i++;
-//          post.print(".");
-//          delay(1);
-//          if (i > 200) {
-//            post.println(" ");
-//            break;
-//          }
-//        }
-//    }
-//    if (mqtt_client.connected()) {
-//      post.println("Connected");
-//      MQTT_send_data_post("Time", String(rtc.getEpoch()));
-//      MQTT_send_data_post("Temp", String(temp));
-//      MQTT_send_data_post("RH", String(humidity));
-//      MQTT_send_data_post("Pres", String(pressure));
-//      MQTT_send_data_post("wDir", String(Wind.wdir));
-//      MQTT_send_data_post("wSpd", String(Wind.wspd));
-//      MQTT_send_data_post("wGust", String(Wind.gust));
-//      MQTT_send_data_post("rLstHr", String(Rain.r_hour_sum));
-//      MQTT_send_data_post("rMidngt", String(Rain.r_mid));
-//      MQTT_send_data_post("rLst24hrs", String(Rain.r_24_sum));
-//      MQTT_send_data_post("Battery", String(batteryLevel));
-//      mqtt_client.loop();
-//    }else{
-//      post.println("MQTT Failed to connect");
-//    }
+    String s = mqtt_topic + "state";
+//    char out[mqtt_buf];
+    String out = "";
+    serializeJson(doc, out);
+    MQTT_send(s, out);
 }
-
 
 void APRS_send(String aprs_msg) {
   if(!aprs_is.connected()){
     aprs_connected = false;
-    if(!aprs_is.connect(APRS_SERVER, APRS_PORT, APRS_FILTER)){
+    if(!aprs_is.connect(APRS_SERVER, APRS_PORT)){
         //If connection fails do otherstuff for 5 seconds then try again.
         #ifdef DEBUG
           Serial.println("APRS Connection Failed");
@@ -273,7 +253,11 @@ void setup() {
     Serial.println("Setup");
   #endif
   Wire.begin();
-  Wire.setClock(400000);
+//  Wire.setClock(400000);
+  if(!adc.init()){
+    Serial.println("ADS1115 not connected!");
+  }
+  adc.setVoltageRange_mV(ADS1115_RANGE_4096);
   bme.setI2CAddress(0x76); //Connect to a second sensor
   bme.beginI2C();
   bme.setMode(MODE_SLEEP);
@@ -295,7 +279,7 @@ void setup() {
   //setModemSleep();//"AB1CDE-10>APRS,AB1CDE:=1234.12N/12345.12E-QTH von AB1CDE"
   mqtt_client.setBufferSize(mqtt_buf);
   MQTT_config();
-  APRS_send(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "_"); // + "-QTH von KF5RHG"); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
+  APRS_send(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "-WeatherStation"); // + "-QTH von KF5RHG"); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
 }
 
 void loop() {
@@ -327,7 +311,6 @@ void loop() {
     post.println("Wind Samples");
     Wind.calc();
     post.println("Done Calc Samples");
-    batteryLevel = map(analogRead(bat_pin), 0.0f, 4095.0f, 0, 100);
     five_minutes = millis();
     dataReady = true;
   }else if( dataReady && (millis() - aprs_timer > report_time) && (millis() - five_delay > 5000) ){
