@@ -15,6 +15,7 @@ const int sample_time = 5000;
 const char* ntpServer = "SOME NTP SERVER";
 const int daylightOffset_sec = 0;
 const int gmtOffset_sec = 0;
+const unsigned int ntp_time = 3600000;
 
 // Wifi Info
 const char* WIFI_NAME = "YOUR WIFI";

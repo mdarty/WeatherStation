@@ -109,11 +109,6 @@ class WindMath {
     unsigned int gust;
     unsigned int wspd;
 
-    String getAPRS() {
-      unsigned int iwdir = wdir + 0.5;
-      return format(iwdir) + "/" + format(wspd) + "g" + format(gust);
-    }
-
     void collect_sample() {
       // Speed 2.4km/h (1.5mph) is 1 count per second
       // 2.4km/hr

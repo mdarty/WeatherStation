@@ -128,20 +128,15 @@ class RainMath {
     unsigned int r_mid;
     unsigned int soil_moisture;
 
-    String getAPRS() {
-      //Generate Rain portion of APRS string
-      return "r" + format(r_hour_sum) + "p" + format(r_24_sum) + "P" + format(r_mid);
-    }
-
     void calc(int min, int hr, int month, int day, int dow) {
       //take sample
       _r_hour_sum();
       
-      post.println("Rain: Midnight");
+      Serial.println("Rain: Midnight");
       
       _r_mid (min, hr, month, day, dow);
       
-      post.println("Rain: 24");
+      Serial.println("Rain: 24");
       
       _r_24_sum();
       rain_count = 0;
