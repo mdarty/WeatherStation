@@ -1,3 +1,6 @@
+#ifndef RAIN_H_
+#define RAIN_H_
+
 unsigned int rain_count = 0;
 unsigned int rain_count_mid = 0;
 unsigned long r_mid_change = 0;
@@ -144,3 +147,6 @@ class RainMath {
       _soil_moisture();
     }
 };
+
+
+#endif

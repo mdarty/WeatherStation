@@ -1,4 +1,9 @@
-#define APRS
+#ifndef MQTT_H_
+#define MQTT_H_
+
+#include <PubSubClient.h>
+#include "W_Struct.h"
+
 volatile unsigned long mqtt_timer = millis();
 
 void mqtt_callback(char* topic, byte* payload, unsigned int length) {
@@ -107,8 +112,15 @@ void MQTT_send_data(w_data ws) {
   doc["SoilMoisture"] = ws.soil_moisture;
 
   doc["Battery"] = ws.batteryLevel;
+  doc["batMode"] = ws.charge_mode;
+  doc["batDuty"] = ws.dutyCycle;
+  doc["solarV"] = ws.solar_mV;
+  doc["batteryV"] = ws.bat_mV;
 
   String out = "";
   serializeJson(doc, out);
   MQTT_send(mqtt_state_topic, out);
 }
+
+
+#endif

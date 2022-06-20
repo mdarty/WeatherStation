@@ -1,3 +1,5 @@
+#ifndef WIND_H_
+#define WIND_H_
 #include <math.h>
 unsigned long wspd_count = 0;
 volatile unsigned long wspd_last_millis = millis();
@@ -139,3 +141,6 @@ class WindMath {
       _wspd_count = 0;
     }
 };
+
+
+#endif
