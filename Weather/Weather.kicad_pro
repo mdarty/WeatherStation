@@ -414,6 +414,27 @@
     "subpart_first_id": 65,
     "subpart_id_separator": 0
   },
-  "sheets": [],
+  "sheets": [
+    [
+      "e7e79f40-7db7-4499-ba64-62c4390199c6",
+      ""
+    ],
+    [
+      "7d8bb356-b5f8-424a-b673-54af7d9173f4",
+      "Solar"
+    ],
+    [
+      "f263332a-d594-4e8c-81d3-321d1fb70de0",
+      "Audio"
+    ],
+    [
+      "a2511544-e854-4c3c-ba95-84dde701cf03",
+      "Sensors"
+    ],
+    [
+      "03d27e73-9c53-4f98-9343-d0546f83374f",
+      "Program"
+    ]
+  ],
   "text_variables": {}
 }

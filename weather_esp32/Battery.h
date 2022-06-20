@@ -87,8 +87,8 @@ void float_charge() {
 }
 
 void bat_charge() {
-  solar_mV = readChannel(solar_pin) * 110/100;
-  bat_mV = readChannel(bat_pin) * 110/100;
+  solar_mV = readChannel(solar_pin) * 110/10;
+  bat_mV = readChannel(bat_pin) * 110/10;
   batteryLevel = map(bat_mV, FLOAT_CH_SP * 0.85, FLOAT_CH_SP, 0, 100);
 
   if (bat_mV < FLOAT_LOW - 1000) {
