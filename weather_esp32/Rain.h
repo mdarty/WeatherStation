@@ -17,6 +17,11 @@ void rain_inc() {
   }
 }
 
+void rain_setup() {
+  pinMode(RAIN_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(RAIN_PIN), rain_inc, FALLING);
+}
+
 //Keep everything as count until publishing.
 class RainMath {
   // bucket_size = 0.2794mm 0.011inches

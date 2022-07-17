@@ -32,9 +32,7 @@ float readChannel(ADS1115_MUX channel) {
   adc.setCompareChannels(channel);
   adc.startSingleMeasurement();
   #ifdef DEBUG
-  Serial.print("Bat Measure: ");
-  while (adc.isBusy()) {Serial.print(".");}
-  Serial.println(" ");
+  while (adc.isBusy()) {Serial.print(",");}
   #else
   while (adc.isBusy()) {}
   #endif
@@ -87,8 +85,8 @@ void float_charge() {
 }
 
 void bat_charge() {
-  solar_mV = readChannel(solar_pin) * 110/10;
-  bat_mV = readChannel(bat_pin) * 110/10;
+  solar_mV = readChannel(solar_pin) * (R1+R2)/R2;
+  bat_mV = readChannel(bat_pin) * (R1+R2)/R2;
   batteryLevel = map(bat_mV, FLOAT_CH_SP * 0.85, FLOAT_CH_SP, 0, 100);
 
   if (bat_mV < FLOAT_LOW - 1000) {

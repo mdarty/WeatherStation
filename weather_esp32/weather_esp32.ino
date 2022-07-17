@@ -1,3 +1,5 @@
+#include "settings.h"
+
 //Libraries
 #include <WiFi.h>
 #include "driver/adc.h"
@@ -5,17 +7,6 @@
 
 //NTP
 #include <ESP32Time.h>
-
-// Required for I2C Sensors
-#include <ADS1115_WE.h>
-#include <Wire.h>
-#include "SparkFunBME280.h"
-
-// BME setup
-BME280 bme;
-byte temp = 0;
-byte humidity = 0;
-unsigned int pressure = 0;
 
 //Variables
 bool dataReady = false;
@@ -34,12 +25,18 @@ volatile unsigned long aprs_timer = millis();
 volatile unsigned long five_delay = millis();
 volatile unsigned long bat_delay = millis();
 
+#include <ADS1115_WE.h>
+#include <Wire.h>
+ADS1115_WE adc = ADS1115_WE(ADC_ADDRESS);
+
 //My stuff
-#include "settings.h"
-
-ADS1115_WE adc = ADS1115_WE(I2C_ADDRESS);
-
+#include "Rain.h"
+#include "Wind.h"
+WindMath Wind;
+RainMath Rain;
 #include "Battery.h"
+
+#include "helpers.h"
 
 #ifdef MQTT
 #include "MQTT.h"
@@ -49,57 +46,32 @@ ADS1115_WE adc = ADS1115_WE(I2C_ADDRESS);
 #include "APRS.h"
 #endif
 
-#ifdef SLEEP
 #include "Sleep.h"
-#endif
-
-
-#include "Rain.h"
-#include "Wind.h"
-
-WindMath Wind;
-RainMath Rain;
-
-#include "helpers.h"
 
 void setup() {
   // put your setup code here, to run once:
-#ifdef DEBUG
-  Serial.begin(115200);
-  Serial.println("Setup");
-#endif
-  Wire.begin();
-  if (!adc.init()) {
-#ifdef DEBUG
-    Serial.println("ADS1115 not connected!");
-#endif
-  }
-  adc.setVoltageRange_mV(ADS1115_RANGE_4096);
-  bme.setI2CAddress(0x76); //Connect to a second sensor
-  bme.beginI2C();
-  bme.setMode(MODE_SLEEP);
-  if (bme.beginI2C() == false) Serial.println("bme connect failed");
+  #ifdef DEBUG
+    Serial.begin(115200);
+    Serial.println("Setup");
+  #endif
+  sensor_config();
   wifi_connect();
   /*---------set with NTP---------------*/
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   if (getLocalTime(&timeinfo)) {
     rtc.setTimeStruct(timeinfo);
   }
-
-  pinMode(RAIN_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(RAIN_PIN), rain_inc, FALLING);
-  pinMode(WSPD_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(WSPD_PIN), wspd_inc, FALLING);
+  rain_setup();
+  wind_setup();
   //setModemSleep();//"AB1CDE-10>APRS,AB1CDE:=1234.12N/12345.12E-QTH von AB1CDE"
-#ifdef MQTT_H_
-  mqtt_client.setBufferSize(mqtt_buf);
-  mqtt_client.setKeepAlive(report_time + 1000);
-  MQTT_config();
-#endif
-#ifdef APRS_H_
-  APRS_send(); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
-#endif
+  #ifdef MQTT
+    MQTT_config();
+  #endif
+  #ifdef APRS
+    APRS_send(); //FW0690>APRS,TCPIP*:!DDMM.hhN/DDDMM.hhW$comments
+  #endif
   bat_setup();
+  bat_charge();
 }
 
 void loop() {
@@ -130,7 +102,7 @@ void loop() {
     five_minutes = millis();
     dataReady = true;
   } else if ( dataReady && (millis() - aprs_timer > report_time) && (millis() - five_delay > 5000) ) {
-#ifdef SLEEP_H_
+#ifdef SLEEP
     enableWiFi();
 #endif
     if (millis() - ntp_timer > ntp_time) {
@@ -138,21 +110,23 @@ void loop() {
         //record time difference?
         rtc.setTimeStruct(timeinfo);
       }
-      MQTT_config();
+      #ifdef MQTT
+        MQTT_config();
+      #endif
     }
     collect_dots = false;
     Serial.println(" ");
     Serial.println("Report Sample");
     w_data ws = load_data();
+    aprs_timer = millis();
+    dataReady = false;
 #ifdef MQTT
     MQTT_send_data(ws);
 #endif
 #ifdef APRS
-    APRS_send(ws);
-    aprs_timer = millis();
+    APRS_send_data(ws);
 #endif
-    dataReady = false;
-#ifdef SLEEP_H_
+#ifdef SLEEP
     disableWiFi();
 #endif
   } else if (millis() - bat_delay > 5000) {

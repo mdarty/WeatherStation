@@ -33,6 +33,10 @@ WiFiClient espClient;
 
 PubSubClient mqtt_client(mqtt_server, mqtt_port, mqtt_callback, espClient);
 
+void MQTT_setup() {
+  
+}
+
 void MQTT_send(String topic, String JSONmessageBuffer) {
   if (!mqtt_client.connected()) {
     Serial.print("Connecting to MQTT: ");
@@ -71,6 +75,8 @@ void MQTT_send(String topic, String JSONmessageBuffer) {
 void MQTT_config() {
   //  String topic;
   //  StaticJsonDocument<mqtt_buf> doc;
+  mqtt_client.setBufferSize(mqtt_buf);
+  mqtt_client.setKeepAlive(report_time + 1000);
   String out;
   String topic = "";
   DynamicJsonDocument doc(mqtt_buf);
@@ -96,15 +102,15 @@ void MQTT_send_data(w_data ws) {
   DynamicJsonDocument doc(mqtt_buf);
 
   doc["device"] = mqtt_clientID;
-  doc["Time"] = ws.Time;
+  doc["Time"] = String(ws.Time) + "+0000";
 
   doc["Temp"] = ws.temp;
   doc["RH"] = ws.humidity;
   doc["Pres"] = ws.pressure;
 
   doc["wDir"] = ws.wdir;
-  doc["wSpd"] = ws.wspd;
-  doc["wGust"] = ws.gust;
+  doc["wSpd"] = (int)(ws.wspd/100.0 + 0.5)/10.0;
+  doc["wGust"] = (int)(ws.gust/100.0 + 0.5)/10.0;
 
   doc["rLstHr"] = (float) ws.r_hour_sum / 100.0;
   doc["rMidngt"] = (float) ws.r_mid / 100.0;
@@ -114,8 +120,8 @@ void MQTT_send_data(w_data ws) {
   doc["Battery"] = ws.batteryLevel;
   doc["batMode"] = ws.charge_mode;
   doc["batDuty"] = ws.dutyCycle;
-  doc["solarV"] = ws.solar_mV;
-  doc["batteryV"] = ws.bat_mV;
+  doc["solarV"] = ws.solar_mV/1000.0;
+  doc["batteryV"] = ws.bat_mV/1000.0;
 
   String out = "";
   serializeJson(doc, out);

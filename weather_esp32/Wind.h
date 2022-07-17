@@ -13,6 +13,11 @@ void wspd_inc() {
   }
 }
 
+void wind_setup() {
+  pinMode(WSPD_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(WSPD_PIN), wspd_inc, FALLING);
+}
+
 class WindMath {
   private:
     unsigned int _gust;
@@ -134,6 +139,11 @@ class WindMath {
       wdir = _wdir_average();
       gust = _gust; //highest 5 second run over 5 minutes;
       wspd = _wspd_sum / _wspd_count; //Average over 5 minutes
+      #ifdef DEBUG
+        Serial.println(wdir);
+        Serial.println(gust);
+        Serial.println(wspd);
+      #endif
 
       //resetting recorders
       _gust = 0;

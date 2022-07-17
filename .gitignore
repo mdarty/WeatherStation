@@ -31,6 +31,9 @@
 *.out
 *.app
 
+# jupyter
+.ipynb_checkpoints/
+
 # These are not the files you're looking for
 weather_esp32/settings.h
 Weather/Weather-backups
