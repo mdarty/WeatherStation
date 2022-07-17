@@ -64,6 +64,7 @@ void I2C_read() {
 w_data load_data() {
   w_data ws;
   strcpy(ws.Time, rtc.getTime("%FT%T").c_str());
+  strcpy(ws.APRS_TIME, rtc.getTime("%H%M%S").c_str()); //171545
   ws.temp = temp;
   ws.humidity = humidity;
   ws.pressure = pressure;

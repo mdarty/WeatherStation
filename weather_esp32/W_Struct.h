@@ -2,6 +2,7 @@
 #define W_STRUCT_H_
 typedef struct w_data {
     char Time[20];
+    char APRS_TIME[20];
     unsigned int temp;
     unsigned int humidity;
     unsigned int pressure;

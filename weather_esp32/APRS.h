@@ -62,11 +62,15 @@ void APRS_send(){
   APRS_send_things(String(APRS_USER) + APRS_SSID + APRS_HEADER + "=" + aprsLocation + "_WeatherStation"); // + "-QTH von KF5RHG"
 }
 
+
+//@171545z3306.05N/09727.49W_.../...g...t...r000p000P000b10155h...weewx-4.8.0-ObserverIP
 void APRS_send_data(w_data ws){
     unsigned int iwdir = ws.wdir + 0.5;
     unsigned int iwspd = ws.wspd/1000.0 + 0.5;
     unsigned int igust = ws.gust/1000.0 + 0.5;
-    String aprs_msg = String(APRS_USER) + APRS_SSID + APRS_HEADER + "@" + aprsLocation + "_"
+    String aprs_msg = String(APRS_USER) + APRS_SSID + APRS_HEADER
+                    + "@" + ws.APRS_TIME + "z"
+                    + aprsLocation + "_"
                     + format(iwdir) + "/" + format(iwspd) + "g" + format(igust)
                     + "t" + format(ws.temp)
                     + "r" + format(ws.r_hour_sum) + "p" + format(ws.r_24_sum) + "P" + format(ws.r_mid)
